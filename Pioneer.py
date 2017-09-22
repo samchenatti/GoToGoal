@@ -1,7 +1,7 @@
 import vrep
 import numpy as np
 
-
+# Classe para controlar o robo Pioneer (Carinhosamente apelidado como Robertinho)
 class Pioneer:
     def __init__(self, cid, sim_control, continuousWalking=None):
         self.clientID          = cid
@@ -42,25 +42,46 @@ class Pioneer:
 
     # Executa uma acao a_t, retorna a observacao o_t+1 e r_t
     def step(self, action):
-        if action == 0:
-            self.__set_motor_velocity("left", self.DEFAULT_VELOCITY)
+        # A primeira modelagem do espaco de acoes era muito complexo
+        # if action == 0:
+        #     self.__set_motor_velocity("left", self.DEFAULT_VELOCITY)
+        #
+        # if action == 1:
+        #     self.__set_motor_velocity("left", self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
+        #
+        # if action == 2:
+        #     self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
+        #
+        # if action == 3:
+        #     self.__set_motor_velocity("right", self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
+        #
+        # if action == 4:
+        #     self.__set_motor_velocity("left", 0)
+        #
+        # if action == 5:
+        #     self.__set_motor_velocity("right", 0)
+        # # action == 6: do nothing
 
-        if action == 1:
-            self.__set_motor_velocity("left", self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
-
-        if action == 2:
+        # Siga em frente
+        if   action == 0:
+            self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
             self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
-        if action == 3:
-            self.__set_motor_velocity("right", self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
+        # Olhe para o lado
+        elif action == 1:
+            self.__set_motor_velocity("left",  0)
+            self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
-        if action == 4:
-            self.__set_motor_velocity("left", 0)
-
-        if action == 5:
+        elif action == 2:
             self.__set_motor_velocity("right", 0)
+            self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
 
-        # action == 6: do nothing
+        elif action == 3:
+            self.__set_motor_velocity("right", 0)
+            self.__set_motor_velocity("left",  0)
+
+        #    action == 4: do nothing
+
 
         # Executa a acao e deixa o timestep ocorrer
         self.sim_control.pass_time()

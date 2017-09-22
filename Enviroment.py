@@ -2,10 +2,12 @@ import vrep, time, random
 from Pioneer import Pioneer
 
 class TrajectorySampler():
-    def __init__(self, policy=None, timestep_lenght=2):
+    def __init__(self, policy=None, timestep_lenght=2, epoch_lenght_insec=30): # tempo(min) de cada ep = epoch_lenght_insec / 60 / 2
         # Politica estocastica. a_t ~ pi(.|x_1, x_2, .... x_13) = pi(.|s_t)
         self.policy      = policy
         self.trajectorys = []
+
+        self.EPOCH_LENGHT = epoch_lenght_insec
 
         # Duracao do timestep em segundos
         self.TIMESTEP_LENGHT = timestep_lenght
@@ -14,7 +16,7 @@ class TrajectorySampler():
     # Wrapper para o metodo real. Assim podemos tratar a interrupcao do teclado
     def generate_trajectorys(self, ):
         try:
-            self.__generate_trajectorys()
+            return self.__generate_trajectorys()
 
         except KeyboardInterrupt:
             self.__stop()
@@ -30,7 +32,7 @@ class TrajectorySampler():
         self.clientID = clientID = vrep.simxStart('127.0.0.1',19997,True,True,5000,5)
 
         # Constante: Numero de episodios/trajetorias
-        n_epochs = 10
+        n_epochs = 1
 
         # Verifica se obtemos uma conexao
         if clientID!=-1:
@@ -44,7 +46,7 @@ class TrajectorySampler():
             sim_control = SimulationControl(self.clientID, self.TIMESTEP_LENGHT)
 
             # Objeto do robo (agente)
-            self.robot = robot = Pioneer(clientID, sim_control, continuousWalking=False)
+            robot = Pioneer(clientID, sim_control, continuousWalking=False)
 
             # Garante que todos os motores inicializem em s0
             # self.robot.reset_actor()
@@ -65,7 +67,8 @@ class TrajectorySampler():
                 # Itera os timesteps
                 t = 0
                 # Cada time step dura, aproximadamente, 2s dentro da simulacao (isso eh controlado na classe pionner)
-                while (t < 3600) and not robot.epoch_failed:
+                while (t < self.EPOCH_LENGHT) and not robot.epoch_failed:
+                    print("Timestep %d" %t)
                     if self.policy:
                         # Lembrando que a politica eh n deterministica
                         a = policy.sample_action(o)
@@ -81,6 +84,8 @@ class TrajectorySampler():
                     trajectory["rewards"].append(r)
                     trajectory["states"].append(o)
 
+                    t += 1
+
 
                 print("Finalizando episódio")
                 # O stopSimulation retorna a simulacao ao estado inicial
@@ -88,6 +93,8 @@ class TrajectorySampler():
 
                 self.trajectorys.append(trajectory)
 
+            # Retorna o set de trajetorias
+            return self.trajectorys
 
         else:
             print("Nao foi possivel obter uma conexao com o servidor")
