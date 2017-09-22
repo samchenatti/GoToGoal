@@ -63,24 +63,24 @@ class Pioneer:
         # # action == 6: do nothing
 
         # Siga em frente
-        if   action == 0:
+        if   action == 0 or action == 5:
             self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
             self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
         # Olhe para o lado
-        elif action == 1:
+        elif action == 1 or action == 6:
             self.__set_motor_velocity("left",  0)
             self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
-        elif action == 2:
+        elif action == 2 or action == 7:
             self.__set_motor_velocity("right", 0)
             self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
 
-        elif action == 3:
+        elif action == 3 or action == 8:
             self.__set_motor_velocity("right", 0)
             self.__set_motor_velocity("left",  0)
 
-        #    action == 4: do nothing
+        #    action == 4 or action == 9: do nothing
 
 
         # Executa a acao e deixa o timestep ocorrer

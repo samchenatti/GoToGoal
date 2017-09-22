@@ -5,7 +5,10 @@ import numpy as np
 
 class GradientPolicy:
     def __init__(self, action_dimension=1, obsv_dimension=1, deep_layers=[3, 3]):
-        self.__neuralnet = ModularNN.ToyNeuralNet(layers=[obsv_dimension, 5, 5, 5, 5, action_dimension])
+        self.__neuralnet = ModularNN.ToyNeuralNet(layers=[obsv_dimension, 50, action_dimension])
+
+    def learn(self):
+        self.__neuralnet.backpropagate([[ 0,  1,  1,  1,  0,  0,  1,  0, 10,  0,  0,  1,  1,  1,  1]])
 
     def stop(self):
         self.__neuralnet.save_weights()

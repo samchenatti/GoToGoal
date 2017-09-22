@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class ToyNeuralNet:
-    def __init__(self, layers=[2, 3, 1], softmaxOutput=True, verbose=True, data="savedData/ReinforceNN"):
+    def __init__(self, layers=[2, 3, 1], gradient_policy=True, softmaxOutput=True, verbose=True, data="savedData/ReinforceNN"):
         self.layers        = layers
         self.input         = None
         self.output        = None
@@ -15,9 +15,10 @@ class ToyNeuralNet:
 
         self.learning_rate = 0.001
 
-        self.softmaxOutput = softmaxOutput
-        self.activation    = self.relu
-        self.data          = data
+        self.softmaxOutput   = softmaxOutput
+        self.activation      = self.relu
+        self.data            = data
+        self.gradient_policy = gradient_policy
 #         self.cost          = self.likelihood_ratio()
 
         self.verb_mode  = verbose
@@ -37,7 +38,7 @@ class ToyNeuralNet:
 
 
         if self.verb_mode:
-            print("If u r changing the NN shape, remember to use a new data folder!")
+            print("If u r changing the NN shape use a new data folder!")
 
     def create_graphs(self):
         # There is a lot of with statements to properly define a namespace for each
@@ -98,8 +99,14 @@ class ToyNeuralNet:
                     self.saver = tf.train.Saver()
 
 
-                # with tf.name_scope("Backprop/") as scope:
-                #     self.train_op = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(- tf.log(self.a_L))
+                # Aqui a coisa fica meio insana
+                with tf.name_scope("GradientPolicy") as scope:
+                    self.likelihood_ratio = tf.log(self.a_L)
+
+                with tf.name_scope("Backprop/") as scope:
+                    self.train_op  = tf.train.GradientDescentOptimizer(self.learning_rate)
+                    self.gradients = self.train_op.compute_gradients(self.likelihood_ratio)
+
 
                 if self.verb_mode:
                     print("Graphs created")
@@ -136,12 +143,9 @@ class ToyNeuralNet:
 
     def backpropagate(self, a_0):
         with self.graph.as_default():
-            sess  = tf.Session(config=tf.ConfigProto( log_device_placement=True))
-            # self.load_weights(sess)
+            o = self.train_op.apply_gradients(self.gradients)
 
-            r = self.dc_dw[1].eval({self.a_0: a_0}, session=sess)
-
-            return(r)
+            o.run(feed_dict={self.a_0: a_0}, session=self.sess)
 
 
     def likelihood_ratio(self):
