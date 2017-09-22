@@ -3,13 +3,16 @@ import numpy as np
 
 
 class Pioneer:
-    def __init__(self, cid, continuousWalking=None):
+    def __init__(self, cid, sim_control, continuousWalking=None):
         self.clientID          = cid
         self.motor_handler     = {"right": None, "left": None}
         self.sensor_handler    = []
 
+        self.sim_control       = sim_control
+
         self.action_space      = [0, 1, 2, 3, 4, 5, 6]
-        self.last_position     = None
+        self.last_pos_since_d  = None
+        self.last_position     = 0
 
         # Constantes de velocidade
         self.DEFAULT_VELOCITY  = 1
@@ -59,10 +62,22 @@ class Pioneer:
 
         # action == 6: do nothing
 
+        # Executa a acao e deixa o timestep ocorrer
+        self.sim_control.pass_time()
+        # Interrompe a simulacao (fim do timestep)
+
+        # Calcula a observacao e a recompensa
         observation = self.__get_sensors_info()
         reward      = self.__get_reward(observation)
 
+        # Se o robo ficar parado por 5 minutos o episodio falhou
+        if self.steps_blocked >= 600:
+            self.epoch_failed = True
+
+        # Nao lembro pq coloquei isso aqui, mas eh melhor deixar
         self.__desloc()
+        self.last_position = self.__get_last_coord()
+
         return (reward, observation)
 
 
@@ -95,6 +110,23 @@ class Pioneer:
         #     reward += 1
         #     self.blocked = False
 
+        # Verificamos se o robo esta bloqueado, ie, seu deslocamento desde o ultimo ts foi < 1cm
+        if self.__is_blocked():
+            # Dizemos que o robo esta bloqueado
+            self.blocked = True
+
+            print("Pioneer esta bloquedo :( ")
+            # Contabilizamos por quantos timesteps o robo ficou preso
+            self.steps_blocked += 1
+
+            reward -= 1
+
+        # Se o robo consegue se destravar damos a ele uma recompensa
+        elif self.blocked:
+            reward += 2
+
+            self.blocked       = False
+            self.steps_blocked = 0
 
         # Damos uma recompensa para o robo por ter andando por 30cm
         # Note que apesar do deslocamento ser calculado atraves da posicao absoluta, poderiamos utilizaar
@@ -106,15 +138,29 @@ class Pioneer:
 
 
     def __get_last_coord(self):
-        self.last_position = np.array(vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_buffer)[1])
+        return np.array(vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_buffer)[1])
 
-    def __desloc(self):
+    # Verifica se o robo esta travado
+    def __is_blocked(self):
         p = np.array(vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_buffer)[1])
 
         desloc = np.linalg.norm(p - self.last_position)
 
+        self.last_position = p
+
+        # Se o deslocamento eh infinmo, o robo esta travado
+        if desloc <= 0.0009:
+            return True
+
+        return False
+
+    def __desloc(self):
+        p = np.array(vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_buffer)[1])
+
+        desloc = np.linalg.norm(p - self.last_pos_since_d)
+
         if desloc >= 0.3:
-            self.__get_last_coord()
+            self.last_pos_since_d = self.__get_last_coord()
 
         return desloc
 
@@ -142,7 +188,7 @@ class Pioneer:
 
         vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_streaming)[1]
 
-        self.last_position = np.array(vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_buffer)[1])
+        self.last_pos_since_d = np.array(vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_buffer)[1])
 
 
     # Retorna a distancia ate o ponto identificado pelo sensor
