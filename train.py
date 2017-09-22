@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import Enviroment, Policy
 
 if __name__ == "__main__":

@@ -16,8 +16,16 @@ class Pioneer:
         self.SPEED_UP_FACTOR   = 1.5
 
         # Constantes relacionadas a recompensa
-        self.REWARD_BY_DESLOC  = 0.3  # O robo recebe uma recompensa por se deslocar 30cm
+        self.REWARD_BY_DESLOC  = 0.15  # O robo recebe uma recompensa por se deslocar 15cm
         self.PENALTY_PROXIMITY = 0.15 # Penaliza o robo no caso de 0.4 dos sensores indicarem distancia de um obstaculo
+
+        # Usamos estas variaveis para dizer se o robo esta bloqueado, e por quantos
+        # timesteps
+        self.blocked           = False
+        self.steps_blocked     = 0
+
+        # Dizemos que um episodio falhou e o encerramos prematuramente
+        self.epoch_failed      = False
 
 
         self.__get_handlers()
@@ -64,18 +72,34 @@ class Pioneer:
         # A recompensa padrao eh zero
         reward = 0
 
-        # Armazena em blocked os sensores a menos de 15cm de um obstaculo
-        blocked = o[np.where(o < self.PENALTY_PROXIMITY)]
+        # # Armazena em blocked os sensores a menos de 15cm de um obstaculo
+        # blocked = o[np.where(o < self.PENALTY_PROXIMITY)]
+        #
+        # # Ao encostar na parede 35/100 dos sensores reportam uma distancia < 15cm
+        # # Logo, assumindo uma distribuição quase uniforme dos sensores, podemos inferir que esta relacao implica uma colisao e o penalizamos
+        # if len(blocked) / len(o) > 0.35:
+        #     reward += -2
+        #
+        #     # Dizemos que o robo esta bloqueado
+        #     self.blocked = True
+        #
+        #     # Contabilizamos por quantos timesteps o robo ficou preso
+        #     self.steps_blocked += 1
+        #
+        #     if self.steps_blocked == 120:
+        #         self.epoch_failed = True
+        #         print("Episode fail :(")
+        #
+        # # No caso do robo ter conseguido se desbloquear, damos a ele uma recompensa (invesamente proporcional ao tempo que passou bloqueado)
+        # elif self.blocked:
+        #     reward += 1
+        #     self.blocked = False
 
-        # Ao encostar na parede 35/100 dos sensores reportam uma distancia < 15cm
-        # Logo, assumindo uma distribuição quase uniforme dos sensores, podemos inferir que esta relacao implica uma colisao e o penalizamos
-        if len(blocked) / len(o) > 0.35:
-            reward += -1
 
-        # Damos uma recompensa para o robo por ter andando por 30cm, a nao ser que esteja encostado na parede
+        # Damos uma recompensa para o robo por ter andando por 30cm
         # Note que apesar do deslocamento ser calculado atraves da posicao absoluta, poderiamos utilizaar
         # a velocidade angular pra calcula-lo
-        elif self.__desloc() >= self.REWARD_BY_DESLOC:
+        if self.__desloc() >= self.REWARD_BY_DESLOC and not self.blocked:
             reward += 1
 
         return reward
@@ -154,3 +178,6 @@ class Pioneer:
     def reset_actor(self):
         self.__set_motor_velocity("right", 0)
         self.__set_motor_velocity( "left", 0)
+
+        self.steps_blocked = 0
+        self.blocked       = False
