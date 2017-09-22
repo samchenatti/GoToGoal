@@ -5,7 +5,7 @@ import numpy as np
 
 class GradientPolicy:
     def __init__(self, action_dimension=1, obsv_dimension=1, deep_layers=[3, 3]):
-        self.__neuralnet = ModularNN.ToyNeuralNet(layers=[obsv_dimension, 3, 5, 3, action_dimension])
+        self.__neuralnet = ModularNN.ToyNeuralNet(layers=[obsv_dimension, 5, 5, 5, 5, action_dimension])
 
     def stop(self):
         self.__neuralnet.save_weights()
@@ -23,6 +23,7 @@ class GradientPolicy:
 
         print("NN output")
         print(actions_density)
+        print("Sum:  %f" %(actions_density.sum()))
         print("Choose action: %d" %a)
 
         return a

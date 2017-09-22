@@ -10,10 +10,13 @@ class ToyNeuralNet:
         self.dc_dw         = []
         self.bias          = []
         self.dc_db         = []
+        self.a             = []
+        self.z             = []
 
         self.learning_rate = 0.001
 
-        self.activation    = self.softmax
+        self.softmaxOutput = softmaxOutput
+        self.activation    = self.relu
         self.data          = data
 #         self.cost          = self.likelihood_ratio()
 
@@ -34,7 +37,7 @@ class ToyNeuralNet:
 
 
         if self.verb_mode:
-            print("If u r changing the NN shape, remember to use another data folder!")
+            print("If u r changing the NN shape, remember to use a new data folder!")
 
     def create_graphs(self):
         # There is a lot of with statements to properly define a namespace for each
@@ -49,7 +52,7 @@ class ToyNeuralNet:
             with tf.device("/gpu:0"):
 
                 # Defines the input layer on its own name scope
-                with tf.name_scope("InputLayer/") as scope:
+                with tf.name_scope("Layer_0/") as scope:
                     self.a_0 = tf.placeholder(tf.float32, [1, self.layers[0]], name="Input")
 
                 # Defines weights and biases
@@ -68,21 +71,26 @@ class ToyNeuralNet:
                             self.weight.append(tf.Variable(tf.truncated_normal([x, y]), name="Weight"))
                             i += 1
 
+                print("Pesos: %d" %(len(self.weight)))
+
 
                 # Defines the fowardpass graph
                 self.a       = [self.a_0]
                 self.z       = [0]
                 for i in range(1, len(self.layers)):
                     with tf.name_scope("Layer_%d/" %i) as scope:
-                        with tf.name_scope("FowardPass") as scope:
-                            z = tf.add(tf.matmul(self.a[i - 1], self.weight[i]), self.bias[i], "Sum_%d" %i)
-                            self.a.append(self.activate(z))
-                            self.z.append(z)
+                        with tf.name_scope("Z_%d" %i) as scope:
+                            z = tf.add(tf.matmul(self.a[i - 1], self.weight[i]), self.bias[i])
 
+                        if i == len(self.layers) - 1 and self.softmaxOutput:
+                            a = self.softmax(z)
+                        else:
+                            a = self.activate(z)
 
-                # Defines the output layer
-                with tf.name_scope("OutputLayer") as scope:
-                    self.a_L = self.activate(self.z[-1])
+                        self.a.append(a)
+                        self.z.append(z)
+
+                self.a_L = self.a[-1]
 
                 # We also need a default saver to save and load our variables
                 # at each run
@@ -90,8 +98,8 @@ class ToyNeuralNet:
                     self.saver = tf.train.Saver()
 
 
-                with tf.name_scope("Backprop/") as scope:
-                    self.train_op = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(- tf.log(self.a_L))
+                # with tf.name_scope("Backprop/") as scope:
+                #     self.train_op = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(- tf.log(self.a_L))
 
                 if self.verb_mode:
                     print("Graphs created")
@@ -100,7 +108,7 @@ class ToyNeuralNet:
     # Run the feedfoward graph
     def feed_foward(self, a_0):
         with self.graph.as_default():
-            # self.load_weights(sess)
+
             r = self.a_L.eval({self.a_0: a_0}, session=self.sess)
 
             if self.verb_mode:
@@ -108,8 +116,6 @@ class ToyNeuralNet:
 
             tf.summary.merge_all()
             tf.summary.FileWriter('tensorflow_log', self.sess.graph)
-
-            # self.save_weights(sess)
 
             return r
 
@@ -130,7 +136,7 @@ class ToyNeuralNet:
 
     def backpropagate(self, a_0):
         with self.graph.as_default():
-            sess  = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=True))
+            sess  = tf.Session(config=tf.ConfigProto( log_device_placement=True))
             # self.load_weights(sess)
 
             r = self.dc_dw[1].eval({self.a_0: a_0}, session=sess)
@@ -162,7 +168,7 @@ class ToyNeuralNet:
     def open_session(self):
         with self.graph.as_default():
             # Create the session
-            self.sess  = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=True))
+            self.sess  = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False))
 
             print("Session closed")
 
@@ -170,8 +176,10 @@ class ToyNeuralNet:
         self.sess.close()
 
     def softmax(self, z):
-        with tf.name_scope("Softmax") as scope:
-            return tf.nn.softmax(z)
+        return tf.nn.softmax(z)
+
+    def relu(self, z):
+        return tf.nn.relu(z)
 
     def activate(self, x):
         with tf.name_scope("Activation") as scope:
