@@ -2,12 +2,12 @@ import vrep, time, random
 from Pioneer import Pioneer
 
 class TrajectorySampler():
-    def __init__(self, policy=None, timestep_lenght=2, epoch_lenght_insec=30): # tempo(min) de cada ep = epoch_lenght_insec / 60 / 2
+    def __init__(self, policy=None, timestep_lenght=2, epoch_lenght_inmin=10): # tempo(min) de cada ep = epoch_lenght_insec / 60 / 2
         # Politica estocastica. a_t ~ pi(.|x_1, x_2, .... x_13) = pi(.|s_t)
         self.policy      = policy
         self.trajectorys = []
 
-        self.EPOCH_LENGHT = epoch_lenght_insec
+        self.EPOCH_LENGHT = epoch_lenght_inmin
 
         # Duracao do timestep em segundos
         self.TIMESTEP_LENGHT = timestep_lenght
@@ -46,7 +46,7 @@ class TrajectorySampler():
             sim_control = SimulationControl(self.clientID, self.TIMESTEP_LENGHT)
 
             # Objeto do robo (agente)
-            robot = Pioneer(clientID, sim_control, continuousWalking=False)
+            self.robot = robot = Pioneer(clientID, sim_control, continuousWalking=False)
 
             # Garante que todos os motores inicializem em s0
             # self.robot.reset_actor()
@@ -67,7 +67,7 @@ class TrajectorySampler():
                 # Itera os timesteps
                 t = 0
                 # Cada time step dura, aproximadamente, 2s dentro da simulacao (isso eh controlado na classe pionner)
-                while (t < self.EPOCH_LENGHT) and not robot.epoch_failed:
+                while (t < (self.EPOCH_LENGHT * 60 * self.TIMESTEP_LENGHT)) and not robot.epoch_failed:
                     print("Timestep %d" %t)
                     if self.policy:
                         # Lembrando que a politica eh n deterministica
@@ -78,7 +78,7 @@ class TrajectorySampler():
                         a = random.randint(0, 7)
 
                     # Obtemos a recompensa e a observacao para a acao a
-                    r, o = robot.step(a)
+                    r, o = robot.step(10)
 
                     trajectory["actions"].append(a)
                     trajectory["rewards"].append(r)
@@ -94,6 +94,7 @@ class TrajectorySampler():
                 self.trajectorys.append(trajectory)
 
             # Retorna o set de trajetorias
+            self.__stop()
             return self.trajectorys
 
         else:
@@ -107,11 +108,13 @@ class TrajectorySampler():
 
 
 class SimulationControl:
-    def __init__(self, cid, ds):
+    def __init__(self, cid, ds, callback=None):
         self.clientID        = cid
         self.clock           = Clock(cid)
 
         self.TIMESTEP_LENGHT = ds
+
+        self.call_before_pause = callback
 
     def pass_time(self):
         # Ligamos a simulacao para executarmos uma acao

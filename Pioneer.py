@@ -1,5 +1,7 @@
 import vrep
 import numpy as np
+import cv2
+from PIL import Image
 
 # Classe para controlar o robo Pioneer (Carinhosamente apelidado como Robertinho)
 class Pioneer:
@@ -7,12 +9,14 @@ class Pioneer:
         self.clientID          = cid
         self.motor_handler     = {"right": None, "left": None}
         self.sensor_handler    = []
+        self.kinect_handler    = []
 
         self.sim_control       = sim_control
 
         self.action_space      = [0, 1, 2, 3, 4, 5, 6]
         self.last_pos_since_d  = None
         self.last_position     = 0
+        self.last_image        = None
 
         # Constantes de velocidade
         self.DEFAULT_VELOCITY  = 1
@@ -42,45 +46,27 @@ class Pioneer:
 
     # Executa uma acao a_t, retorna a observacao o_t+1 e r_t
     def step(self, action):
-        # A primeira modelagem do espaco de acoes era muito complexo
-        # if action == 0:
-        #     self.__set_motor_velocity("left", self.DEFAULT_VELOCITY)
-        #
-        # if action == 1:
-        #     self.__set_motor_velocity("left", self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
-        #
-        # if action == 2:
-        #     self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
-        #
-        # if action == 3:
-        #     self.__set_motor_velocity("right", self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
-        #
-        # if action == 4:
-        #     self.__set_motor_velocity("left", 0)
-        #
-        # if action == 5:
-        #     self.__set_motor_velocity("right", 0)
-        # # action == 6: do nothing
-
         # Siga em frente
-        if   action == 0 or action == 5:
+        if   action == 0 or action == 4:
             self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
             self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
         # Olhe para o lado
-        elif action == 1 or action == 6:
+        elif action == 1 or action == 5:
             self.__set_motor_velocity("left",  0)
             self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
-        elif action == 2 or action == 7:
+        elif action == 2 or action == 6:
             self.__set_motor_velocity("right", 0)
             self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
 
-        elif action == 3 or action == 8:
-            self.__set_motor_velocity("right", 0)
-            self.__set_motor_velocity("left",  0)
+        #    action == 3 or action == 7: do nothing
 
-        #    action == 4 or action == 9: do nothing
+        # Pessima ideia
+        # elif action == 3 or action == 8:
+        #     self.__set_motor_velocity("right", 0)
+        #     self.__set_motor_velocity("left",  0)
+
 
 
         # Executa a acao e deixa o timestep ocorrer
@@ -91,9 +77,10 @@ class Pioneer:
         observation = self.__get_sensors_info()
         reward      = self.__get_reward(observation)
 
-        # Se o robo ficar parado por 5 minutos o episodio falhou
-        if self.steps_blocked >= 600:
+        # Se o robo ficar parado por 2.5 minutos o episodio falhou (para ds = 2s)
+        if self.steps_blocked >= 30:
             self.epoch_failed = True
+            print("Pioneer ficou preso por tempo demais e o episodio falhou")
 
         # Nao lembro pq coloquei isso aqui, mas eh melhor deixar
         self.__desloc()
@@ -107,29 +94,6 @@ class Pioneer:
     def __get_reward(self, o):
         # A recompensa padrao eh zero
         reward = 0
-
-        # # Armazena em blocked os sensores a menos de 15cm de um obstaculo
-        # blocked = o[np.where(o < self.PENALTY_PROXIMITY)]
-        #
-        # # Ao encostar na parede 35/100 dos sensores reportam uma distancia < 15cm
-        # # Logo, assumindo uma distribuição quase uniforme dos sensores, podemos inferir que esta relacao implica uma colisao e o penalizamos
-        # if len(blocked) / len(o) > 0.35:
-        #     reward += -2
-        #
-        #     # Dizemos que o robo esta bloqueado
-        #     self.blocked = True
-        #
-        #     # Contabilizamos por quantos timesteps o robo ficou preso
-        #     self.steps_blocked += 1
-        #
-        #     if self.steps_blocked == 120:
-        #         self.epoch_failed = True
-        #         print("Episode fail :(")
-        #
-        # # No caso do robo ter conseguido se desbloquear, damos a ele uma recompensa (invesamente proporcional ao tempo que passou bloqueado)
-        # elif self.blocked:
-        #     reward += 1
-        #     self.blocked = False
 
         # Verificamos se o robo esta bloqueado, ie, seu deslocamento desde o ultimo ts foi < 1cm
         if self.__is_blocked():
@@ -166,11 +130,11 @@ class Pioneer:
         p = np.array(vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_buffer)[1])
 
         desloc = np.linalg.norm(p - self.last_position)
-
+        print("Isblocked time: %f" %self.steps_blocked)
         self.last_position = p
 
         # Se o deslocamento eh infinmo, o robo esta travado
-        if desloc <= 0.0009:
+        if desloc <= 0.05:
             return True
 
         return False
@@ -191,6 +155,7 @@ class Pioneer:
         # Motor handlers
         left, self.motor_handler["right"] = vrep.simxGetObjectHandle(self.clientID, "Pioneer_p3dx_rightMotor", vrep.simx_opmode_blocking)
         left, self.motor_handler["left"]  = vrep.simxGetObjectHandle(self.clientID, "Pioneer_p3dx_leftMotor",  vrep.simx_opmode_blocking)
+        left, self.kinect_handler         = vrep.simxGetObjectHandle(self.clientID, "kinect_rgb",               vrep.simx_opmode_blocking)
 
         # Sensor handlers
         for i in range(1, 16):
@@ -208,7 +173,9 @@ class Pioneer:
             vrep.simxReadProximitySensor(self.clientID, sensor_handler, vrep.simx_opmode_streaming)
 
         vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_streaming)[1]
+        vrep.simxGetVisionSensorImage(self.clientID, self.kinect_handler, 10, vrep.simx_opmode_streaming)
 
+        # Nao lembro o pq disso estar ai, mas nao mexe
         self.last_pos_since_d = np.array(vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_buffer)[1])
 
 
@@ -216,7 +183,7 @@ class Pioneer:
     def __get_sensors_info(self):
         l = []
         for sensor_handler in self.sensor_handler:
-            r = vrep.simxReadProximitySensor(self.clientID, sensor_handler, vrep.simx_opmode_streaming)
+            r = vrep.simxReadProximitySensor(self.clientID, sensor_handler, vrep.simx_opmode_buffer)
             detect   = r[1]
 
             if detect:
@@ -226,8 +193,13 @@ class Pioneer:
             else:
                 l.append(1)
 
-        return np.array(l)
 
+        # Captura a imagem do kinect
+        r, image_res, image = vrep.simxGetVisionSensorImage(self.clientID, self.kinect_handler, 0, vrep.simx_opmode_buffer)
+
+        self.__process_image(image)
+
+        return np.array(l)
 
     # Seta o robo para andar continuamente
     def __continous_walking(self, flag, v):
@@ -248,3 +220,41 @@ class Pioneer:
 
         self.steps_blocked = 0
         self.blocked       = False
+
+
+    # Varias loucuras de processamento de imagem
+    def __process_image(self, image):
+        self.__make_rgb_map(image)
+
+    def __make_rgb_map(self, image):
+        rgb_image = []
+
+        i = 0
+        pixel = []
+        for value in image:
+            pixel.append(np.absolute(value))
+            i += 1
+
+            if i == 3:
+                i = 0
+                rgb_image.append(pixel)
+                pixel = []
+
+        i = 0
+        final_image = []
+        line        = []
+        for pixel in rgb_image:
+            line.append(pixel)
+            i += 1
+
+            if i == 120:
+                i = 0
+                final_image.append(line)
+                line = []
+
+        rgb_image = np.array(final_image)
+        print(rgb_image)
+        img = Image.fromarray(np.array(rgb_image), 'RGB')
+        img.save('out.png')
+
+        return rgb_image
