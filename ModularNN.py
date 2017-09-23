@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class ToyNeuralNet:
-    def __init__(self, layers=[2, 4, 1], gradient_policy=True, softmaxOutput=False, verbose=True, data="savedData/ReinforceNN"):
+    def __init__(self, layers=[2, 4, 1], gradient_policy=True, deep_activation="sigmoid", softmax_output=False, verbose=True, data="savedData/ReinforceNN"):
         self.layers        = layers
         self.input         = None
         self.output        = None
@@ -15,8 +15,8 @@ class ToyNeuralNet:
 
         self.learning_rate = 0.1
 
-        self.softmaxOutput   = softmaxOutput
-        self.activation      = self.sigmoid
+        self.activation      = None
+        self.softmaxOutput   = softmax_output
         self.data            = data
         self.gradient_policy = gradient_policy
 #         self.cost          = self.likelihood_ratio()
@@ -30,11 +30,15 @@ class ToyNeuralNet:
         # Open the main session
         self.open_session()
 
+        #
+        self.set_activation(deep_activation)
+
         # Create the layers and connects them
         self.create_graphs()
 
         # Loads the weights
         self.load_weights()
+
 
 
         if self.verb_mode:
@@ -190,22 +194,24 @@ class ToyNeuralNet:
             print("Session closed")
 
 
+
+    def activate(self, x):
+        with tf.name_scope("Activation") as scope:
+            return self.activation(x)
+
     def softmax(self, z):
         return tf.nn.softmax(z)
 
     def relu(self, z):
         return tf.nn.relu(z)
 
-    def activate(self, x):
-        with tf.name_scope("Activation") as scope:
-            return self.activation(x)
-
     def sigmoid(self, x):
         # return tf.div(tf.constant(1.0), tf.add(tf.constant(1.0), tf.exp(tf.negative(x))))
         return tf.nn.sigmoid(x)
 
-    def sigmoid_prime(x):
-        return tf.multiply(sigma(x), tf.subtract(tf.constant(1.0), sigma(x)))
 
-    def set_activation(self, activation, activation_prime):
-        return
+    def set_activation(self, activation):
+        if   activation == "sigmoid":
+            self.activation = self.sigmoid
+        elif activation == "relu":
+            self.activation = self.relu

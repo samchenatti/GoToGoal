@@ -4,7 +4,7 @@ import ModularNN
 # So um pequeno teste para testar o funcionamento do backprop
 
 if __name__ == "__main__":
-    nn = ModularNN.ToyNeuralNet()
+    nn = ModularNN.ToyNeuralNet(data="or_net_data/ReinforceNN")
 
 
     # 0 or 0 = 0
