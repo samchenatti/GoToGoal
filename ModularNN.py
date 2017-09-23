@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class ToyNeuralNet:
-    def __init__(self, layers=[2, 3, 1], gradient_policy=True, softmaxOutput=True, verbose=True, data="savedData/ReinforceNN"):
+    def __init__(self, layers=[2, 4, 1], gradient_policy=True, softmaxOutput=False, verbose=True, data="savedData/ReinforceNN"):
         self.layers        = layers
         self.input         = None
         self.output        = None
@@ -13,10 +13,10 @@ class ToyNeuralNet:
         self.a             = []
         self.z             = []
 
-        self.learning_rate = 0.001
+        self.learning_rate = 0.1
 
         self.softmaxOutput   = softmaxOutput
-        self.activation      = self.relu
+        self.activation      = self.sigmoid
         self.data            = data
         self.gradient_policy = gradient_policy
 #         self.cost          = self.likelihood_ratio()
@@ -98,14 +98,18 @@ class ToyNeuralNet:
                 with tf.name_scope("GobalSaver/") as scope:
                     self.saver = tf.train.Saver()
 
+                self.Y = tf.placeholder(tf.float32, [1, 1], name="Input")
 
                 # Aqui a coisa fica meio insana
                 with tf.name_scope("GradientPolicy") as scope:
-                    self.likelihood_ratio = tf.log(self.a_L)
+                    # self.likelihood_ratio = tf.log(self.a_L)
+                    self.cost = tf.square(self.Y - self.a_L, name="cost")
+
+
 
                 with tf.name_scope("Backprop/") as scope:
                     self.train_op  = tf.train.GradientDescentOptimizer(self.learning_rate)
-                    self.gradients = self.train_op.compute_gradients(self.likelihood_ratio)
+                    self.gradients = self.train_op.compute_gradients(self.cost)
 
 
                 if self.verb_mode:
@@ -119,10 +123,10 @@ class ToyNeuralNet:
             r = self.a_L.eval({self.a_0: a_0}, session=self.sess)
 
             if self.verb_mode:
-                print("IT IS ALIVE  >:D")
+                print("IT IS ALIVE  (and thinking)  >:D")
 
-            tf.summary.merge_all()
-            tf.summary.FileWriter('tensorflow_log', self.sess.graph)
+            # tf.summary.merge_all()
+            # tf.summary.FileWriter('tensorflow_log', self.sess.graph)
 
             return r
 
@@ -141,11 +145,13 @@ class ToyNeuralNet:
                 self.init_variables(sess)
 
 
-    def backpropagate(self, a_0):
+    def backpropagate(self, a_0, Y):
         with self.graph.as_default():
             o = self.train_op.apply_gradients(self.gradients)
 
-            o.run(feed_dict={self.a_0: a_0}, session=self.sess)
+            o.run(feed_dict={self.a_0: a_0, self.Y: Y}, session=self.sess)
+
+            return self.cost.eval({self.a_0: a_0, self.Y: Y}, session=self.sess)
 
 
     def likelihood_ratio(self):
@@ -174,10 +180,15 @@ class ToyNeuralNet:
             # Create the session
             self.sess  = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False))
 
-            print("Session closed")
+            if self.verb_mode:
+                print("Session opened")
 
     def close_session(self):
         self.sess.close()
+
+        if self.verb_mode:
+            print("Session closed")
+
 
     def softmax(self, z):
         return tf.nn.softmax(z)
@@ -190,7 +201,8 @@ class ToyNeuralNet:
             return self.activation(x)
 
     def sigmoid(self, x):
-        return tf.div(tf.constant(1.0), tf.add(tf.constant(1.0), tf.exp(tf.negative(x))))
+        # return tf.div(tf.constant(1.0), tf.add(tf.constant(1.0), tf.exp(tf.negative(x))))
+        return tf.nn.sigmoid(x)
 
     def sigmoid_prime(x):
         return tf.multiply(sigma(x), tf.subtract(tf.constant(1.0), sigma(x)))
