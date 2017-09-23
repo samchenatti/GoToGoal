@@ -3,9 +3,10 @@
 import Enviroment, Policy
 
 if __name__ == "__main__":
-    policy             = Policy.GradientPolicy(action_dimension=9, obsv_dimension=15)
+    #TODO: Definir as dimensoes da rede a partir do Enviroment
+    policy             = Policy.ACGradientPolicy(action_dimension=5, obsv_dimension=15)
     trajectory_sampler = Enviroment.TrajectorySampler(policy=policy)
 
     thau = trajectory_sampler.generate_trajectorys()
 
-    print(thau)
+    policy.learn(thau)

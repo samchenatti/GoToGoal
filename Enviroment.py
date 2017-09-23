@@ -2,15 +2,19 @@ import vrep, time, random
 from Pioneer import Pioneer
 
 class TrajectorySampler():
-    def __init__(self, policy=None, timestep_lenght=2, epoch_lenght_inmin=10): # tempo(min) de cada ep = epoch_lenght_insec / 60 / 2
+    def __init__(self, policy=None, timestep_lenght=2, epoch_lenght_inmin=1):
         # Politica estocastica. a_t ~ pi(.|x_1, x_2, .... x_13) = pi(.|s_t)
         self.policy      = policy
-        self.trajectorys = []
 
+        # Duracao do episodio em minutos
         self.EPOCH_LENGHT = epoch_lenght_inmin
 
         # Duracao do timestep em segundos
         self.TIMESTEP_LENGHT = timestep_lenght
+
+
+    def action_space(self):
+        return self.robot.action_space
 
 
     # Wrapper para o metodo real. Assim podemos tratar a interrupcao do teclado
@@ -46,56 +50,52 @@ class TrajectorySampler():
             sim_control = SimulationControl(self.clientID, self.TIMESTEP_LENGHT)
 
             # Objeto do robo (agente)
-            self.robot = robot = Pioneer(clientID, sim_control, continuousWalking=False)
+            robot = self.robot = Pioneer(clientID, sim_control, continuousWalking=False)
 
             # Garante que todos os motores inicializem em s0
             # self.robot.reset_actor()
 
-            # Itera os episodios
-            for e in range(0, n_epochs):
-                # Armazenamos a trajetoria nesta lista
-                trajectory = {"actions":[], "states":[], "rewards":[]}
 
-                print("Iniciando episódio ")
+            # Armazenamos a trajetoria nesta lista
+            trajectory = {"actions":[], "observations":[], "rewards":[]}
 
-                # A primeira observacao do episodio vem da posicao neutra do robo
-                robot.reset_actor()
-                r, o = robot.step(7)
+            print("Iniciando episódio ")
 
-                trajectory["states"].append(o)
+            # A primeira observacao do episodio vem da posicao neutra do robo
+            robot.reset_actor()
+            r, o = robot.step(20)
 
-                # Itera os timesteps
-                t = 0
-                # Cada time step dura, aproximadamente, 2s dentro da simulacao (isso eh controlado na classe pionner)
-                while (t < (self.EPOCH_LENGHT * 60 * self.TIMESTEP_LENGHT)) and not robot.epoch_failed:
-                    print("Timestep %d" %t)
-                    if self.policy:
-                        # Lembrando que a politica eh n deterministica
-                        a = policy.sample_action(o)
+            # Itera os timesteps
+            t = 0
+            # Cada time step dura, aproximadamente, TIMESTEP_LENGHT dentro da simulacao
+            while (t < (self.EPOCH_LENGHT * 60 * self.TIMESTEP_LENGHT)) and not robot.epoch_failed:
+                print(" ")
+                print("Timestep %d" %t)
+                if self.policy:
+                    # Lembrando que a politica eh n deterministica
+                    a = policy.sample_action(o)
 
-                    else:
-                        # Se nao tivermos uma politica, bora fazer um random walk :D
-                        a = random.randint(0, 7)
+                else:
+                    # Se nao tivermos uma politica, bora fazer um random walk :D
+                    a = random.randint(0, 7)
 
-                    # Obtemos a recompensa e a observacao para a acao a
-                    r, o = robot.step(10)
+                # Obtemos a recompensa e a observacao para a acao a
+                r, o = robot.step(a)
 
-                    trajectory["actions"].append(a)
-                    trajectory["rewards"].append(r)
-                    trajectory["states"].append(o)
+                trajectory["actions"].append(a)
+                trajectory["rewards"].append(r)
+                trajectory["observations"].append(o)
 
-                    t += 1
+                t += 1
 
 
-                print("Finalizando episódio")
-                # O stopSimulation retorna a simulacao ao estado inicial
-                vrep.simxStopSimulation(clientID,  vrep.simx_opmode_blocking)
+            print("Finalizando episódio")
+            # O stopSimulation retorna a simulacao ao estado inicial
+            vrep.simxStopSimulation(clientID,  vrep.simx_opmode_blocking)
 
-                self.trajectorys.append(trajectory)
-
-            # Retorna o set de trajetorias
             self.__stop()
-            return self.trajectorys
+            # Retorna o set de trajetorias
+            return trajectory
 
         else:
             print("Nao foi possivel obter uma conexao com o servidor")
@@ -104,7 +104,6 @@ class TrajectorySampler():
         print("Forcando interrupcao")
         vrep.simxStopSimulation(self.clientID,  vrep.simx_opmode_blocking)
         self.robot.reset_actor()
-        self.policy.stop()
 
 
 class SimulationControl:

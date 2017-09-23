@@ -1,7 +1,8 @@
 import tensorflow as tf
 
-class ToyNeuralNet:
-    def __init__(self, layers=[2, 4, 1], gradient_policy=True, deep_activation="sigmoid", softmax_output=False, verbose=True, data="savedData/ReinforceNN"):
+class PGNeuralNet:
+    def __init__(self, layers=[2, 4, 1], gradient_policy=True, deep_activation="sigmoid", softmax_output=False, verbose=True, data_folder="savedData/", name=None):
+        self.name          = name
         self.layers        = layers
         self.input         = None
         self.output        = None
@@ -17,18 +18,16 @@ class ToyNeuralNet:
 
         self.activation      = None
         self.softmaxOutput   = softmax_output
-        self.data            = data
+        self.data            = data_folder + name
         self.gradient_policy = gradient_policy
-#         self.cost          = self.likelihood_ratio()
 
         self.verb_mode  = verbose
 
         # Creates a default graph and a default session
-        self.graph      = tf.Graph()
-        self.sess       = None
-
-        # Open the main session
-        self.open_session()
+        # self.graph      = tf.Graph()
+        # self.sess       = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False), graph=self.graph)
+        self.graph = tf.Graph()
+        self.sess  = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False), graph=self.graph)
 
         #
         self.set_activation(deep_activation)
@@ -40,9 +39,9 @@ class ToyNeuralNet:
         self.load_weights()
 
 
-
         if self.verb_mode:
             print("If u r changing the NN shape use a new data folder!")
+
 
     def create_graphs(self):
         # There is a lot of with statements to properly define a namespace for each
@@ -58,7 +57,7 @@ class ToyNeuralNet:
 
                 # Defines the input layer on its own name scope
                 with tf.name_scope("Layer_0/") as scope:
-                    self.a_0 = tf.placeholder(tf.float32, [1, self.layers[0]], name="Input")
+                    self.a_0 = tf.placeholder(tf.float32, [None, None], name="Input")
 
                 # Defines weights and biases
                 self.bias.append(0)
@@ -76,8 +75,6 @@ class ToyNeuralNet:
                             self.weight.append(tf.Variable(tf.truncated_normal([x, y]), name="Weight"))
                             i += 1
 
-                print("Pesos: %d" %(len(self.weight)))
-
 
                 # Defines the fowardpass graph
                 self.a       = [self.a_0]
@@ -88,9 +85,9 @@ class ToyNeuralNet:
                             z = tf.add(tf.matmul(self.a[i - 1], self.weight[i]), self.bias[i])
 
                         if i == len(self.layers) - 1 and self.softmaxOutput:
-                            a = self.softmax(z)
+                            a = tf.nn.softmax(z)
                         else:
-                            a = self.activate(z)
+                            a = self.activation(z)
 
                         self.a.append(a)
                         self.z.append(z)
@@ -104,33 +101,64 @@ class ToyNeuralNet:
 
                 self.Y = tf.placeholder(tf.float32, [1, 1], name="Input")
 
-                # Aqui a coisa fica meio insana
-                with tf.name_scope("GradientPolicy") as scope:
-                    # self.likelihood_ratio = tf.log(self.a_L)
-                    self.cost = tf.square(self.Y - self.a_L, name="cost")
+
+                with tf.name_scope("Cost/") as scope:
+                    # Aqui a coisa fica meio insana e ao mesmo tempo maravilhosa
+                    # Vou explicar em portugues mesmo :P
+                    if self.gradient_policy:
+                        with tf.name_scope("GradientPolicy/") as scope:
+
+                            # Lembrando que a funcao objetivo eh
+                            # grad_theta( sum_upto_T( log( pi_theta( a_t | s_t) ) Â_t ) )
+
+                            # Nos imputaremos as acoes (discretas)
+                            self.actions    = tf.placeholder(tf.int32,   [None, None], name="Actions")
+                            # E a vantagem para cada timestep
+                            self.advantages = tf.placeholder(tf.float32, [None, None], name="Advantages" )
+
+                            # Fazemos um one hot encode das acoes
+                            actions_taken    = tf.one_hot(self.actions, self.layers[-1])
+
+                            # A nossa rede retorna a probabilidade de todas as acoes
+                            # do espaco, mas queremos considerar apenas aquelas que
+                            # de fato tomamos ao longo da trajetorias.
+                            # Usamos o one hot encoded como uma mascara que multiplica
+                            # por zero as probabilidades das acoes que nao tomamos.
+                            # O que resulta entao sao as probs pi(a_0 | s_0)...pi(a_N | s_N)
+                            trajectory_probs     = self.a_L * actions_taken
+
+                            # Fazemos o somatorio de t = 0 ate T de log( pi( a_t | s_t) )
+                            sum_trajectory_probs = tf.reduce_sum(tf.log(trajectory_probs))
+
+                            # Multiplicamos pela vantagem e fazemos o somatorio
+                            sum_actor_critic = tf.reduce_sum(sum_trajectory_probs * self.advantages)
+
+                            # Maximizamos a recompensa
+                            self.cost  = - sum_actor_critic
+
+                    # Funcao de custo comum
+                    else:
+                        self.Y    = tf.placeholder(tf.float32, [None, None], name="Y" )
+                        self.cost = tf.square(self.Y - self.a_L, name="cost")
 
 
+                # God bless automatic diff
+                with tf.name_scope("Backpropagation/") as scope:
+                    # We can also use any optimizer we want
+                    self.train_op  = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.cost)
 
-                with tf.name_scope("Backprop/") as scope:
-                    self.train_op  = tf.train.GradientDescentOptimizer(self.learning_rate)
-                    self.gradients = self.train_op.compute_gradients(self.cost)
-
+                tf.summary.merge_all()
+                tf.summary.FileWriter('tensorflowLog/' + self.name + "/", self.sess.graph)
 
                 if self.verb_mode:
                     print("Graphs created")
 
 
     # Run the feedfoward graph
-    def feed_foward(self, a_0):
+    def feedfoward(self, a_0):
         with self.graph.as_default():
 
             r = self.a_L.eval({self.a_0: a_0}, session=self.sess)
-
-            if self.verb_mode:
-                print("IT IS ALIVE  (and thinking)  >:D")
-
-            # tf.summary.merge_all()
-            # tf.summary.FileWriter('tensorflow_log', self.sess.graph)
 
             return r
 
@@ -148,19 +176,14 @@ class ToyNeuralNet:
                     print("Creating new set of variables")
                 self.init_variables(sess)
 
+    def backpropagate_trajectory(self, actions, observations, advantages):
+        with self.graph.as_default():
+            self.train_op.run(feed_dict={self.a_0: observations, self.actions: actions, self.advantages: advantages}, session=self.sess)
 
     def backpropagate(self, a_0, Y):
         with self.graph.as_default():
-            o = self.train_op.apply_gradients(self.gradients)
-
-            o.run(feed_dict={self.a_0: a_0, self.Y: Y}, session=self.sess)
-
-            return self.cost.eval({self.a_0: a_0, self.Y: Y}, session=self.sess)
-
-
-    def likelihood_ratio(self):
-        with tf.name_scope("LikelihoodRatio/") as scope:
-            lr = tf.log(self.a_L)
+            # Automatic backprop
+            self.train_op.run(feed_dict={self.a_0: a_0, self.Y: Y}, session=self.sess)
 
 
     def save_weights(self, sess=None):
@@ -179,39 +202,9 @@ class ToyNeuralNet:
         self.save_weights(sess)
 
 
-    def open_session(self):
-        with self.graph.as_default():
-            # Create the session
-            self.sess  = tf.Session(config=tf.ConfigProto(allow_soft_placement=True, log_device_placement=False))
-
-            if self.verb_mode:
-                print("Session opened")
-
-    def close_session(self):
-        self.sess.close()
-
-        if self.verb_mode:
-            print("Session closed")
-
-
-
-    def activate(self, x):
-        with tf.name_scope("Activation") as scope:
-            return self.activation(x)
-
-    def softmax(self, z):
-        return tf.nn.softmax(z)
-
-    def relu(self, z):
-        return tf.nn.relu(z)
-
-    def sigmoid(self, x):
-        # return tf.div(tf.constant(1.0), tf.add(tf.constant(1.0), tf.exp(tf.negative(x))))
-        return tf.nn.sigmoid(x)
-
-
     def set_activation(self, activation):
         if   activation == "sigmoid":
-            self.activation = self.sigmoid
+            self.activation = tf.nn.sigmoid
+
         elif activation == "relu":
-            self.activation = self.relu
+            self.activation = tf.nn.relu

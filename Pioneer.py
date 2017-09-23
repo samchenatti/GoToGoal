@@ -13,7 +13,7 @@ class Pioneer:
 
         self.sim_control       = sim_control
 
-        self.action_space      = [0, 1, 2, 3, 4, 5, 6]
+        self.action_space      = [0, 1, 2, 3, 4]
         self.last_pos_since_d  = None
         self.last_position     = 0
         self.last_image        = None
@@ -40,6 +40,8 @@ class Pioneer:
         if continuousWalking:
             self.__continous_walking(True, 1)
 
+    def set_clientid(self, cid):
+        self.clientID = cid
 
     def get_action_space(self):
         return self.action_space
@@ -47,26 +49,25 @@ class Pioneer:
     # Executa uma acao a_t, retorna a observacao o_t+1 e r_t
     def step(self, action):
         # Siga em frente
-        if   action == 0 or action == 4:
+        if   action == 0:
             self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
             self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
         # Olhe para o lado
-        elif action == 1 or action == 5:
+        elif action == 1:
             self.__set_motor_velocity("left",  0)
             self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
-        elif action == 2 or action == 6:
+        elif action == 2:
             self.__set_motor_velocity("right", 0)
             self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
 
-        #    action == 3 or action == 7: do nothing
+        # Se liga no...
+        elif action == 3:
+            self.__set_motor_velocity("right", 0)
+            self.__set_motor_velocity("left",  0)
 
-        # Pessima ideia
-        # elif action == 3 or action == 8:
-        #     self.__set_motor_velocity("right", 0)
-        #     self.__set_motor_velocity("left",  0)
-
+        # action == 4: do nothing
 
 
         # Executa a acao e deixa o timestep ocorrer
@@ -78,7 +79,7 @@ class Pioneer:
         reward      = self.__get_reward(observation)
 
         # Se o robo ficar parado por 2.5 minutos o episodio falhou (para ds = 2s)
-        if self.steps_blocked >= 30:
+        if self.steps_blocked >= 15:
             self.epoch_failed = True
             print("Pioneer ficou preso por tempo demais e o episodio falhou")
 
@@ -195,9 +196,9 @@ class Pioneer:
 
 
         # Captura a imagem do kinect
-        r, image_res, image = vrep.simxGetVisionSensorImage(self.clientID, self.kinect_handler, 0, vrep.simx_opmode_buffer)
+        # r, image_res, image = vrep.simxGetVisionSensorImage(self.clientID, self.kinect_handler, 0, vrep.simx_opmode_buffer)
 
-        self.__process_image(image)
+        # self.__process_image(image)
 
         return np.array(l)
 
