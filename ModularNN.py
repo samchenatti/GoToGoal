@@ -14,7 +14,7 @@ class PGNeuralNet:
         self.a             = []
         self.z             = []
 
-        self.learning_rate = 0.1
+        self.learning_rate = 0.001
 
         self.activation      = None
         self.softmaxOutput   = softmax_output
@@ -134,7 +134,7 @@ class PGNeuralNet:
                             sum_actor_critic = tf.reduce_sum(sum_trajectory_probs * self.advantages)
 
                             # Maximizamos a recompensa
-                            self.cost  = - sum_actor_critic
+                            self.cost  = tf.negative( sum_actor_critic )
 
                             tf.Print(self.cost, [self.cost])
 
@@ -189,7 +189,7 @@ class PGNeuralNet:
         with self.graph.as_default():
             # Automatic backprop
             self.train_op.run(feed_dict={self.a_0: a_0, self.Y: Y}, session=self.sess)
-            # self.save_weights()
+            self.__save_weights()
 
 
     def __save_weights(self, sess=None):

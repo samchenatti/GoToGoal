@@ -6,9 +6,10 @@ import numpy as np
 class ACGradientPolicy:
     def __init__(self, action_dimension=1, obsv_dimension=1, deep_layers=[3, 3]):
         self.__actor_net  = ModularNN.PGNeuralNet(layers=[obsv_dimension, 20, action_dimension], deep_activation="tahn", gradient_policy=True, softmax_output=True, data_folder="SavedData/ActorData/", name="Actor", verbose=True)
-        self.__critic_net = ModularNN.PGNeuralNet(layers=[obsv_dimension, 20, 1], deep_activation="tahn", gradient_policy=False, softmax_output=False, data_folder="SavedData/CriticData/", name="Critic", verbose=False)
+        self.__critic_net = ModularNN.PGNeuralNet(layers=[obsv_dimension, 20, 1], deep_activation="tahn", gradient_policy=False, softmax_output=False, data_folder="SavedData/CriticData/",
+name="Critic", verbose=True)
 
-        self.gamma = 0.009
+        self.gamma = 0.09
 
         self.reward_history = []
 

@@ -13,7 +13,7 @@ if __name__ == "__main__":
     policy             = Policy.ACGradientPolicy(action_dimension=5, obsv_dimension=15)
     trajectory_sampler = Enviroment.TrajectorySampler(policy=policy)
 
-    for episode in range(0, 200):
+    for episode in range(0, 200000):
         print("Ep %d" %episode)
 
         thau = trajectory_sampler.generate_trajectorys()
