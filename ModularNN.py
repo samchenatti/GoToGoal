@@ -57,7 +57,7 @@ class PGNeuralNet:
 
                 # Defines the input layer on its own name scope
                 with tf.name_scope("Layer_0/") as scope:
-                    self.a_0 = tf.placeholder(tf.float32, [None, None], name="Input")
+                    self.a_0 = tf.placeholder(tf.float32, [None, self.layers[0]], name="Input")
 
                 # Defines weights and biases
                 self.bias.append(0)
@@ -117,7 +117,7 @@ class PGNeuralNet:
                             self.advantages = tf.placeholder(tf.float32, [None, None], name="Advantages" )
 
                             # Fazemos um one hot encode das acoes
-                            actions_taken    = tf.one_hot(self.actions, self.layers[-1])
+                            self.at = actions_taken    = tf.one_hot(self.actions, self.layers[-1])
 
                             # A nossa rede retorna a probabilidade de todas as acoes
                             # do espaco, mas queremos considerar apenas aquelas que
@@ -125,16 +125,18 @@ class PGNeuralNet:
                             # Usamos o one hot encoded como uma mascara que multiplica
                             # por zero as probabilidades das acoes que nao tomamos.
                             # O que resulta entao sao as probs pi(a_0 | s_0)...pi(a_N | s_N)
-                            trajectory_probs     = self.a_L * actions_taken
+                            self.tp = trajectory_probs     = self.a_L * actions_taken
 
                             # Fazemos o somatorio de t = 0 ate T de log( pi( a_t | s_t) )
-                            sum_trajectory_probs = tf.reduce_sum(tf.log(trajectory_probs))
+                            self.stp = sum_trajectory_probs = tf.log(tf.reduce_sum(trajectory_probs))
 
                             # Multiplicamos pela vantagem e fazemos o somatorio
                             sum_actor_critic = tf.reduce_sum(sum_trajectory_probs * self.advantages)
 
                             # Maximizamos a recompensa
                             self.cost  = - sum_actor_critic
+
+                            tf.Print(self.cost, [self.cost])
 
                     # Funcao de custo comum
                     else:
@@ -176,17 +178,21 @@ class PGNeuralNet:
                     print("Creating new set of variables")
                 self.init_variables(sess)
 
+
     def backpropagate_trajectory(self, actions, observations, advantages):
         with self.graph.as_default():
             self.train_op.run(feed_dict={self.a_0: observations, self.actions: actions, self.advantages: advantages}, session=self.sess)
+            # return self.tp.eval(feed_dict={self.a_0: observations, self.actions: actions, self.advantages: advantages}, session=self.sess)
+            # self.save_weights()
 
     def backpropagate(self, a_0, Y):
         with self.graph.as_default():
             # Automatic backprop
             self.train_op.run(feed_dict={self.a_0: a_0, self.Y: Y}, session=self.sess)
+            # self.save_weights()
 
 
-    def save_weights(self, sess=None):
+    def __save_weights(self, sess=None):
         with self.graph.as_default():
             s =  self.saver.save(self.sess,  self.data)
 
@@ -199,7 +205,7 @@ class PGNeuralNet:
         if self.verb_mode:
             print("All variables initialized")
 
-        self.save_weights(sess)
+        # self.save_weights(sess)
 
 
     def set_activation(self, activation):
@@ -208,3 +214,6 @@ class PGNeuralNet:
 
         elif activation == "relu":
             self.activation = tf.nn.relu
+
+        elif activation == "tahn":
+            self.activation = tf.nn.tanh

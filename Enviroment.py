@@ -68,7 +68,7 @@ class TrajectorySampler():
             # Itera os timesteps
             t = 0
             # Cada time step dura, aproximadamente, TIMESTEP_LENGHT dentro da simulacao
-            while (t < (self.EPOCH_LENGHT * 60 * self.TIMESTEP_LENGHT)) and not robot.epoch_failed:
+            while (t < (self.EPOCH_LENGHT * 60 / self.TIMESTEP_LENGHT)) and not robot.epoch_failed:
                 print(" ")
                 print("Timestep %d" %t)
                 if self.policy:
