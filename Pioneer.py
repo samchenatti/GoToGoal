@@ -23,7 +23,7 @@ class Pioneer:
         self.SPEED_UP_FACTOR   = 1.5
 
         # Constantes relacionadas a recompensa
-        self.REWARD_BY_DESLOC  = 0.15  # O robo recebe uma recompensa por se deslocar 15cm
+        self.REWARD_BY_DESLOC  = 1  # O robo recebe uma recompensa por se deslocar 15cm
         self.PENALTY_PROXIMITY = 0.15 # Penaliza o robo no caso de 0.4 dos sensores indicarem distancia de um obstaculo
 
         # Usamos estas variaveis para dizer se o robo esta bloqueado, e por quantos
@@ -87,6 +87,7 @@ class Pioneer:
         self.__desloc()
         self.last_position = self.__get_last_coord()
 
+        print("Recompensa nesse ts: %d" %reward)
         return (reward, observation)
 
 
@@ -120,6 +121,13 @@ class Pioneer:
         if self.__desloc() >= self.REWARD_BY_DESLOC and not self.blocked:
             reward += 1
 
+        # Verifica se o robo chegou ao objetivo
+        p = self.last_position
+        if (p[0] >= 1 and p[0] <= 2) and (p[1] >= -2 and p[1] <= -1):
+            print("Pioneer chegou ao destino e o episodio foi um sucesso :D ")
+            self.epoch_failed = True #TODO mudar o nome dessa flag
+            reward += 20
+
         return reward
 
 
@@ -145,7 +153,7 @@ class Pioneer:
 
         desloc = np.linalg.norm(p - self.last_pos_since_d)
 
-        if desloc >= 0.3:
+        if desloc >= self.REWARD_BY_DESLOC:
             self.last_pos_since_d = self.__get_last_coord()
 
         return desloc

@@ -149,8 +149,8 @@ class PGNeuralNet:
                     # We can also use any optimizer we want
                     self.train_op  = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.cost)
 
-                tf.summary.merge_all()
-                tf.summary.FileWriter('tensorflowLog/' + self.name + "/", self.sess.graph)
+                # tf.summary.merge_all()
+                # tf.summary.FileWriter('tensorflowLog/' + self.name + "/", self.sess.graph)
 
                 if self.verb_mode:
                     print("Graphs created")
@@ -183,7 +183,7 @@ class PGNeuralNet:
         with self.graph.as_default():
             self.train_op.run(feed_dict={self.a_0: observations, self.actions: actions, self.advantages: advantages}, session=self.sess)
             # return self.tp.eval(feed_dict={self.a_0: observations, self.actions: actions, self.advantages: advantages}, session=self.sess)
-            # self.save_weights()
+            self.__save_weights()
 
     def backpropagate(self, a_0, Y):
         with self.graph.as_default():
@@ -205,7 +205,7 @@ class PGNeuralNet:
         if self.verb_mode:
             print("All variables initialized")
 
-        # self.save_weights(sess)
+        self.__save_weights(sess)
 
 
     def set_activation(self, activation):

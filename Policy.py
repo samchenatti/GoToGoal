@@ -8,7 +8,7 @@ class ACGradientPolicy:
         self.__actor_net  = ModularNN.PGNeuralNet(layers=[obsv_dimension, 20, action_dimension], deep_activation="tahn", gradient_policy=True, softmax_output=True, data_folder="SavedData/ActorData/", name="Actor", verbose=True)
         self.__critic_net = ModularNN.PGNeuralNet(layers=[obsv_dimension, 20, 1], deep_activation="tahn", gradient_policy=False, softmax_output=False, data_folder="SavedData/CriticData/", name="Critic", verbose=False)
 
-        self.gamma = 0.09
+        self.gamma = 0.009
 
         self.reward_history = []
 
@@ -19,8 +19,11 @@ class ACGradientPolicy:
         actions = trajectory["actions"]
 
         r, advantages = self.__advantage_estimate(obsv, rewards)
+        print("Advantages: %s" %advantages)
 
         self.__actor_net.backpropagate_trajectory([actions], obsv, advantages)
+
+        return r
 
 
     def sample_action(self, o):
@@ -44,7 +47,10 @@ class ACGradientPolicy:
         G = totalreward = 0
         for o, r in zip(reversed(obsv), reversed(rewards)):
             returns.append(G)
-            advantages.append(G - self.__critic_net.feedfoward([o])[0])
+
+            v = self.__critic_net.feedfoward([o])[0]
+
+            advantages.append(G - v)
             G = r + self.gamma * G
             returns.reverse()
             advantages.reverse()
