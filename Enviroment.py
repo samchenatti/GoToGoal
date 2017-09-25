@@ -57,7 +57,9 @@ class TrajectorySampler():
 
 
             # Armazenamos a trajetoria nesta lista
-            trajectory = {"actions":[], "observations":[], "rewards":[]}
+            actions = []
+            rewards = []
+            observations = []
 
             print("Iniciando episódio ")
 
@@ -82,9 +84,9 @@ class TrajectorySampler():
                 # Obtemos a recompensa e a observacao para a acao a
                 r, o = robot.step(a)
 
-                trajectory["actions"].append(a)
-                trajectory["rewards"].append(r)
-                trajectory["observations"].append(o)
+                actions.append(a)
+                rewards.append(r)
+                observations.append(o)
 
                 t += 1
 
@@ -95,7 +97,7 @@ class TrajectorySampler():
 
             self.__stop()
             # Retorna o set de trajetorias
-            return trajectory
+            return observations, rewards, actions
 
         else:
             print("Nao foi possivel obter uma conexao com o servidor")
