@@ -12,9 +12,9 @@ Minha solução para o desafio se baseia no algoritmo de Politica do Gradiente c
  - Certifique-se de possuir os pacotes *tensorflow*, *numpy* e *vrep*.
  - De dentro da pasta raiz do projeto, rode os seguintes comandos
 
-'''
+```
 # vrep ClientVrep/scenes/goToGoalSolidWall.ttt (use -h para rodar sem gui)
 # python train.py
-'''
+```
 
  - O script pode ser interrompido a qualquer momento sem risco de danos aos parametros da rede
