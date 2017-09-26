@@ -5,7 +5,7 @@ import numpy as np
 
 class ACGradientPolicy:
     def __init__(self, action_dimension=1, obsv_dimension=1, deep_layers=[3, 3]):
-        self.__actor_net  = ModularNN.PGNeuralNet(layers=[obsv_dimension, 10, action_dimension], deep_activation="tahn", gradient_policy=True, softmax_output=True, data_folder="SavedData/ActorData/", name="Actor", verbose=False, lr=1e-4, optimizer="gradient")
+        self.__actor_net  = ModularNN.PGNeuralNet(layers=[obsv_dimension, 10, action_dimension], deep_activation="tahn", gradient_policy=True, softmax_output=True, data_folder="SavedData/ActorData/", name="Actor", verbose=False, lr=1e-3, optimizer="gradient")
         self.__critic_net = ModularNN.PGNeuralNet(layers=[obsv_dimension, 10, 1], deep_activation="tahn", gradient_policy=False, softmax_output=False, data_folder="SavedData/CriticData/", name="Critic", verbose=False, lr=1e-4, optimizer="gradient")
 
         # Queremos que a recompensa futura importe quase tanto quanto as iniciais,
@@ -59,8 +59,8 @@ class ACGradientPolicy:
         V.reverse()
 
         # print("V: %s" %V)
-        # print("Returns: %s" %returns)
-        # print("Advantages: %s" %advantages)
+        print("Returns: %s" %returns)
+        print("Advantages: %s" %advantages)
 
         for o, r in zip(obsv, returns):
             self.__critic_net.backpropagate(o, r)

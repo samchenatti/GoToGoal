@@ -5,39 +5,40 @@ from PIL import Image
 
 # Classe para controlar o robo Pioneer (Carinhosamente apelidado como Robertinho)
 class Pioneer:
-    def __init__(self, cid, sim_control, continuousWalking=None):
-        self.clientID          = cid
-        self.motor_handler     = {"right": None, "left": None}
-        self.sensor_handler    = []
-        self.kinect_handler    = []
+    def __init__(self, cid, sim_control, continuous_walking=True):
+        self.clientID           = cid
+        self.motor_handler      = {"right": None, "left": None}
+        self.sensor_handler     = []
+        self.kinect_handler     = []
 
-        self.sim_control       = sim_control
+        self.sim_control        = sim_control
 
-        self.action_space      = [0, 1, 2, 3, 4]
-        self.last_pos_since_d  = None
-        self.last_position     = 0
-        self.last_image        = None
+        self.action_space       = [0, 1, 2, 3, 4]
+        self.last_pos_since_d   = None
+        self.last_position      = 0
+        self.last_image         = None
 
         # Constantes de velocidade
-        self.DEFAULT_VELOCITY  = 1
-        self.SPEED_UP_FACTOR   = 1.5
+        self.DEFAULT_VELOCITY   = 1
+        self.SPEED_UP_FACTOR    = 1.5
+        self.continuous_walking = continuous_walking
 
         # Constantes relacionadas a recompensa
-        self.REWARD_BY_DESLOC  = 0.45  # O robo recebe uma recompensa por se deslocar 45cm
-        self.PENALTY_PROXIMITY = 0.15 # Penaliza o robo no caso de 0.4 dos sensores indicarem distancia de um obstaculo
+        self.REWARD_BY_DESLOC   = 0.45  # O robo recebe uma recompensa por se deslocar 45cm
+        self.PENALTY_PROXIMITY  = 0.15 # Penaliza o robo no caso de 0.4 dos sensores indicarem distancia de um obstaculo
 
         # Usamos estas variaveis para dizer se o robo esta bloqueado, e por quantos
         # timesteps
-        self.blocked           = False
-        self.steps_blocked     = 0
+        self.blocked            = False
+        self.steps_blocked      = 0
 
         # Dizemos que um episodio falhou e o encerramos prematuramente
-        self.epoch_failed      = False
+        self.epoch_failed       = False
 
 
         self.__get_handlers()
 
-        if continuousWalking:
+        if continuous_walking:
             self.__continous_walking(True, 1)
 
     def set_clientid(self, cid):
@@ -78,11 +79,6 @@ class Pioneer:
         observation = self.__get_sensors_info()
         reward      = self.__get_reward(observation)
 
-        # Se o robo ficar parado por 1ts  o episodio falhou (para ds = 2s)
-        if self.steps_blocked >= 1:
-            self.epoch_failed = True
-            print("Pioneer ficou preso por tempo demais e o episodio falhou")
-            reward = -100
 
         # Nao lembro pq coloquei isso aqui, mas eh melhor deixar
         self.__desloc()
@@ -111,7 +107,7 @@ class Pioneer:
 
         # Se o robo consegue se destravar damos a ele uma recompensa
         elif self.blocked:
-            reward += 5
+            reward += 1
 
             self.blocked       = False
             self.steps_blocked = 0
@@ -125,12 +121,18 @@ class Pioneer:
         # if self.__desloc() >= self.REWARD_BY_DESLOC and not self.blocked:
             # reward += 5
 
+        # Se o robo ficar parado por 1ts  o episodio falhou (para ds = 2s)
+        if self.steps_blocked >= 1:
+            self.epoch_failed = True
+            print("Pioneer ficou preso por tempo demais e o episodio falhou")
+            reward = -1
+
         # Verifica se o robo chegou ao objetivo
         p = self.last_position
         if (p[0] >= 1 and p[0] <= 2) and (p[1] >= -2 and p[1] <= -1):
             print("Pioneer chegou ao destino e o episodio foi um sucesso :D ")
             self.epoch_failed = True #TODO mudar o nome dessa flag
-            reward += 200
+            reward += 500
 
         return reward
 
@@ -216,7 +218,7 @@ class Pioneer:
 
     # Seta o robo para andar continuamente
     def __continous_walking(self, flag, v):
-        if v:
+        if flag:
             vrep.simxSetJointTargetVelocity(self.clientID, self.motor_handler["right"], self.DEFAULT_VELOCITY, vrep.simx_opmode_blocking)
             vrep.simxSetJointTargetVelocity(self.clientID, self.motor_handler["left"], self.DEFAULT_VELOCITY, vrep.simx_opmode_blocking)
         else:
@@ -228,8 +230,11 @@ class Pioneer:
         vrep.simxSetJointTargetVelocity(self.clientID, self.motor_handler[motor], velocity, vrep.simx_opmode_blocking)
 
     def reset_actor(self):
-        self.__set_motor_velocity("right", 0)
-        self.__set_motor_velocity( "left", 0)
+        if self.continuous_walking:
+            self.__continous_walking(True, 0)
+        else:
+            self.__set_motor_velocity("right", 0)
+            self.__set_motor_velocity( "left", 0)
 
         self.steps_blocked = 0
         self.blocked       = False

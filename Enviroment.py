@@ -50,7 +50,7 @@ class TrajectorySampler():
             sim_control = SimulationControl(self.clientID, self.TIMESTEP_LENGHT)
 
             # Objeto do robo (agente)
-            robot = self.robot = Pioneer(clientID, sim_control, continuousWalking=False)
+            robot = self.robot = Pioneer(clientID, sim_control, continuous_walking=True)
 
             # Garante que todos os motores inicializem em s0
             # self.robot.reset_actor()
