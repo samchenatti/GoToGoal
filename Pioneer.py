@@ -125,7 +125,7 @@ class Pioneer:
         if self.steps_blocked >= 1:
             self.epoch_failed = True
             print("Pioneer ficou preso por tempo demais e o episodio falhou")
-            reward = -1
+            reward = 0
 
         # Verifica se o robo chegou ao objetivo
         p = self.last_position

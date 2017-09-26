@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     try:
         #TODO: Definir as dimensoes da rede a partir do Enviroment
-        policy             = Policy.ACGradientPolicy(action_dimension=4, obsv_dimension=15)
+        policy             = Policy.ACGradientPolicy(action_dimension=3, obsv_dimension=15)
         trajectory_sampler = Enviroment.TrajectorySampler(policy=policy)
 
         for episode in range(0, 200000):
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
             reward_history.append(r)
 
-            print("Episode reward: %s" %r)
+            print("Episode reward: %s\nLast 10 mean: %s" %(r, numpy.mean(numpy.array( rewards ))))
 
             numpy.save("reward_history", numpy.array(reward_history))
 

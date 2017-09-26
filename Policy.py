@@ -6,7 +6,7 @@ import numpy as np
 class ACGradientPolicy:
     def __init__(self, action_dimension=1, obsv_dimension=1, deep_layers=[3, 3]):
         self.__actor_net  = ModularNN.PGNeuralNet(layers=[obsv_dimension, 10, action_dimension], deep_activation="tahn", gradient_policy=True, softmax_output=True, data_folder="SavedData/ActorData/", name="Actor", verbose=False, lr=1e-3, optimizer="gradient")
-        self.__critic_net = ModularNN.PGNeuralNet(layers=[obsv_dimension, 10, 1], deep_activation="tahn", gradient_policy=False, softmax_output=False, data_folder="SavedData/CriticData/", name="Critic", verbose=False, lr=1e-4, optimizer="gradient")
+        self.__critic_net = ModularNN.PGNeuralNet(layers=[obsv_dimension, 10, 1], deep_activation="tahn", gradient_policy=False, softmax_output=False, data_folder="SavedData/CriticData/", name="Critic", verbose=False, lr=1e-3, optimizer="gradient")
 
         # Queremos que a recompensa futura importe quase tanto quanto as iniciais,
         # assim o robo aprende muito com a punicao por ter travado
@@ -43,13 +43,12 @@ class ACGradientPolicy:
 
         G = totalreward = 0
         for o, r in zip(reversed(obsv), reversed(rewards)):
-            returns.append(G)
             v = self.__critic_net.feedfoward(o)[0][0]
             V.append(v)
 
-
-            advantages.append(G - v)
             G = r + self.gamma * G
+            advantages.append(G - v)
+            returns.append(G)
 
             totalreward += r
             # print(G)

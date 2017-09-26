@@ -2,7 +2,7 @@ import vrep, time, random
 from Pioneer import Pioneer
 
 class TrajectorySampler():
-    def __init__(self, policy=None, timestep_lenght=2, epoch_lenght_inmin=30):
+    def __init__(self, policy=None, timestep_lenght=1, epoch_lenght_inmin=30):
         # Politica estocastica. a_t ~ pi(.|x_1, x_2, .... x_13) = pi(.|s_t)
         self.policy      = policy
 
