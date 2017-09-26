@@ -155,8 +155,8 @@ class PGNeuralNet:
                     # We can also use any optimizer we want
                     self.train_op  = self.optimizer(self.learning_rate).minimize(self.cost)
 
-                tf.summary.merge_all()
-                tf.summary.FileWriter('tensorflowLog/' + self.name + "/", self.sess.graph)
+                # tf.summary.merge_all()
+                # tf.summary.FileWriter('tensorflowLog/' + self.name + "/", self.sess.graph)
 
                 if self.verb_mode:
                     print("Graphs created")
