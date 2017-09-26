@@ -17,4 +17,4 @@ Minha solução para o desafio se baseia no algoritmo de Politica do Gradiente c
 # python train.py
 ```
 
- - O script pode ser interrompido a qualquer momento sem risco de danos aos parametros da rede
+ - O script pode ser interrompido a qualquer momento sem risco de perder ou danificar os parametros das redes neurais
