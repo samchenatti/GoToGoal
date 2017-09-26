@@ -5,7 +5,7 @@ import numpy as np
 
 class ACGradientPolicy:
     def __init__(self, action_dimension=1, obsv_dimension=1, deep_layers=[3, 3]):
-        self.__actor_net  = ModularNN.PGNeuralNet(layers=[obsv_dimension, 10, action_dimension], deep_activation="tahn", gradient_policy=True, softmax_output=True, data_folder="SavedData/ActorData/", name="Actor", verbose=False, lr=1e-1, optimizer="adagrad")
+        self.__actor_net  = ModularNN.PGNeuralNet(layers=[obsv_dimension, 10, action_dimension], deep_activation="tahn", gradient_policy=True, softmax_output=True, data_folder="SavedData/ActorData/", name="Actor", verbose=False, lr=1e-4, optimizer="gradient")
         self.__critic_net = ModularNN.PGNeuralNet(layers=[obsv_dimension, 10, 1], deep_activation="tahn", gradient_policy=False, softmax_output=False, data_folder="SavedData/CriticData/", name="Critic", verbose=False, lr=1e-4, optimizer="gradient")
 
         # Queremos que a recompensa futura importe quase tanto quanto as iniciais,
@@ -21,19 +21,17 @@ class ACGradientPolicy:
         # print("Yours advantages: %s" %a)
         self.__actor_net.backpropagate_trajectory(actions, observations, advantages)
 
-        return 0
-
 
     def sample_action(self, o):
         o = np.array([o])
         pred = self.__actor_net.feedfoward(o)[0]
 
-        # print("Actions disttibution: %s" %pred)
+        print("Actions disttibution: %s" %pred)
 
         # Tomamos uma acao com base na densiade
         a = np.random.choice(len(pred), p=pred)
 
-        # print("Action taked: %s" %a)
+        print("Action taked: %s" %a)
 
         return a
 
@@ -67,4 +65,4 @@ class ACGradientPolicy:
         for o, r in zip(obsv, returns):
             self.__critic_net.backpropagate(o, r)
 
-        return (totalreward, advantages)
+        return (0, advantages)

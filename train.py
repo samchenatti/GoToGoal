@@ -1,6 +1,9 @@
 #!/usr/bin/python
 
 import Enviroment, Policy, numpy
+import matplotlib
+matplotlib.rcParams["backend"] = "TkAgg"
+import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     try:
@@ -10,19 +13,23 @@ if __name__ == "__main__":
 
     try:
         #TODO: Definir as dimensoes da rede a partir do Enviroment
-        policy             = Policy.ACGradientPolicy(action_dimension=5, obsv_dimension=15)
+        policy             = Policy.ACGradientPolicy(action_dimension=4, obsv_dimension=15)
         trajectory_sampler = Enviroment.TrajectorySampler(policy=policy)
 
         for episode in range(0, 200000):
             print("Ep %d" %episode)
 
             observations, rewards, actions = trajectory_sampler.generate_trajectorys()
-            r = policy.learn()
+            policy.learn(observations, actions, rewards)
+
+            r = numpy.array( rewards[:-1] ).sum()
 
             reward_history.append(r)
 
-            print("History: %s" %reward_history)
+            print("Episode reward: %s" %r)
+
             numpy.save("reward_history", numpy.array(reward_history))
+
 
     except KeyboardInterrupt:
         plt.plot(reward_history)

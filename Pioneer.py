@@ -23,7 +23,7 @@ class Pioneer:
         self.SPEED_UP_FACTOR   = 1.5
 
         # Constantes relacionadas a recompensa
-        self.REWARD_BY_DESLOC  = 1  # O robo recebe uma recompensa por se deslocar 15cm
+        self.REWARD_BY_DESLOC  = 0.45  # O robo recebe uma recompensa por se deslocar 45cm
         self.PENALTY_PROXIMITY = 0.15 # Penaliza o robo no caso de 0.4 dos sensores indicarem distancia de um obstaculo
 
         # Usamos estas variaveis para dizer se o robo esta bloqueado, e por quantos
@@ -55,19 +55,19 @@ class Pioneer:
 
         # Olhe para o lado
         elif action == 1:
-            self.__set_motor_velocity("left",  0)
+            self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
             self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
         elif action == 2:
-            self.__set_motor_velocity("right", 0)
+            self.__set_motor_velocity("right", self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
             self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
 
         # Se liga no...
-        elif action == 3:
-            self.__set_motor_velocity("right", 0)
-            self.__set_motor_velocity("left",  0)
+        # elif action == 3:
+        #     self.__set_motor_velocity("right", 0)
+        #     self.__set_motor_velocity("left",  0)
 
-        # action == 4: do nothing
+        # action == 3: do nothing
 
 
         # Executa a acao e deixa o timestep ocorrer
@@ -78,10 +78,11 @@ class Pioneer:
         observation = self.__get_sensors_info()
         reward      = self.__get_reward(observation)
 
-        # Se o robo ficar parado por 2.5 minutos o episodio falhou (para ds = 2s)
-        if self.steps_blocked >= 15:
+        # Se o robo ficar parado por 1ts  o episodio falhou (para ds = 2s)
+        if self.steps_blocked >= 1:
             self.epoch_failed = True
             print("Pioneer ficou preso por tempo demais e o episodio falhou")
+            reward = -100
 
         # Nao lembro pq coloquei isso aqui, mas eh melhor deixar
         self.__desloc()
@@ -110,23 +111,26 @@ class Pioneer:
 
         # Se o robo consegue se destravar damos a ele uma recompensa
         elif self.blocked:
-            reward += 2
+            reward += 5
 
             self.blocked       = False
             self.steps_blocked = 0
 
+        else:
+            reward += 1
+
         # Damos uma recompensa para o robo por ter andando por 30cm
         # Note que apesar do deslocamento ser calculado atraves da posicao absoluta, poderiamos utilizaar
         # a velocidade angular pra calcula-lo
-        if self.__desloc() >= self.REWARD_BY_DESLOC and not self.blocked:
-            reward += 1
+        # if self.__desloc() >= self.REWARD_BY_DESLOC and not self.blocked:
+            # reward += 5
 
         # Verifica se o robo chegou ao objetivo
         p = self.last_position
         if (p[0] >= 1 and p[0] <= 2) and (p[1] >= -2 and p[1] <= -1):
             print("Pioneer chegou ao destino e o episodio foi um sucesso :D ")
             self.epoch_failed = True #TODO mudar o nome dessa flag
-            reward += 20
+            reward += 200
 
         return reward
 
