@@ -10,17 +10,19 @@ class Pioneer:
         self.motor_handler      = {"right": None, "left": None}
         self.sensor_handler     = []
         self.kinect_handler     = []
+        self.body_handler       = None
 
         self.sim_control        = sim_control
 
-        self.action_space       = [0, 1, 2, 3, 4]
+        self.action_space       = [0, 1, 2]
         self.last_pos_since_d   = None
         self.last_position      = 0
         self.last_image         = None
+        self.total_steps        = 0
 
         # Constantes de velocidade
-        self.DEFAULT_VELOCITY   = 1
-        self.SPEED_UP_FACTOR    = 1.5
+        self.DEFAULT_VELOCITY   = 0.5
+        self.SPEED_UP_FACTOR    = 2
         self.continuous_walking = continuous_walking
 
         # Constantes relacionadas a recompensa
@@ -49,6 +51,8 @@ class Pioneer:
 
     # Executa uma acao a_t, retorna a observacao o_t+1 e r_t
     def step(self, action):
+        self.total_steps += 1
+
         # Siga em frente
         if   action == 0:
             self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
@@ -56,12 +60,12 @@ class Pioneer:
 
         # Olhe para o lado
         elif action == 1:
-            self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
-            self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
+            self.__set_motor_velocity("right", self.SPEED_UP_FACTOR * self.DEFAULT_VELOCITY)
+            self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
 
         elif action == 2:
-            self.__set_motor_velocity("right", self.DEFAULT_VELOCITY * self.SPEED_UP_FACTOR)
-            self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY)
+            self.__set_motor_velocity("left",  self.DEFAULT_VELOCITY * self.DEFAULT_VELOCITY)
+            self.__set_motor_velocity("right", self.DEFAULT_VELOCITY)
 
         # Se liga no...
         # elif action == 3:
@@ -78,7 +82,7 @@ class Pioneer:
         # Calcula a observacao e a recompensa
         observation = self.__get_sensors_info()
         reward      = self.__get_reward(observation)
-
+        print(observation)
 
         # Nao lembro pq coloquei isso aqui, mas eh melhor deixar
         self.__desloc()
@@ -125,7 +129,7 @@ class Pioneer:
         if self.steps_blocked >= 1:
             self.epoch_failed = True
             print("Pioneer ficou preso por tempo demais e o episodio falhou")
-            reward = 0
+            reward = -20
 
         # Verifica se o robo chegou ao objetivo
         p = self.last_position
@@ -139,6 +143,7 @@ class Pioneer:
 
     def __get_last_coord(self):
         return np.array(vrep.simxGetObjectPosition(self.clientID, self.motor_handler["right"], -1, vrep.simx_opmode_buffer)[1])
+        # return np.array(vrep.simxGetObjectPosition(self.clientID, self.body_handler, -1, vrep.simx_opmode_buffer)[1])
 
     # Verifica se o robo esta travado
     def __is_blocked(self):
@@ -149,7 +154,7 @@ class Pioneer:
         self.last_position = p
 
         # Se o deslocamento eh infinmo, o robo esta travado
-        if desloc <= 0.05:
+        if desloc <= 0.02:
             return True
 
         return False
@@ -168,12 +173,15 @@ class Pioneer:
     # "Seta" os handlers dos motores e dos sensores
     def __get_handlers(self):
         # Motor handlers
-        left, self.motor_handler["right"] = vrep.simxGetObjectHandle(self.clientID, "Pioneer_p3dx_rightMotor", vrep.simx_opmode_blocking)
-        left, self.motor_handler["left"]  = vrep.simxGetObjectHandle(self.clientID, "Pioneer_p3dx_leftMotor",  vrep.simx_opmode_blocking)
+        left, self.motor_handler["right"] = vrep.simxGetObjectHandle(self.clientID, "Pioneer_p3dx_rightMotor",  vrep.simx_opmode_blocking)
+        left, self.motor_handler["left"]  = vrep.simxGetObjectHandle(self.clientID, "Pioneer_p3dx_leftMotor",   vrep.simx_opmode_blocking)
         left, self.kinect_handler         = vrep.simxGetObjectHandle(self.clientID, "kinect_rgb",               vrep.simx_opmode_blocking)
+        left, self.body_handler           = vrep.simxGetObjectHandle(self.clientID, "Pioneer_p3dx_connection7", vrep.simx_opmode_blocking)
+
+        print("Body handler: %s" %self.body_handler)
 
         # Sensor handlers
-        for i in range(1, 16):
+        for i in range(1, 17):
             s = "Pioneer_p3dx_ultrasonicSensor%d" %i
             e, sh = vrep.simxGetObjectHandle(self.clientID, s, vrep.simx_opmode_blocking)
 
@@ -238,41 +246,14 @@ class Pioneer:
 
         self.steps_blocked = 0
         self.blocked       = False
+        self.total_steps   = 0
+
 
 
     # Varias loucuras de processamento de imagem
     def __process_image(self, image):
-        self.__make_rgb_map(image)
+        # self.__make_rgb_map(image)
+        return
 
     def __make_rgb_map(self, image):
-        rgb_image = []
-
-        i = 0
-        pixel = []
-        for value in image:
-            pixel.append(np.absolute(value))
-            i += 1
-
-            if i == 3:
-                i = 0
-                rgb_image.append(pixel)
-                pixel = []
-
-        i = 0
-        final_image = []
-        line        = []
-        for pixel in rgb_image:
-            line.append(pixel)
-            i += 1
-
-            if i == 120:
-                i = 0
-                final_image.append(line)
-                line = []
-
-        rgb_image = np.array(final_image)
-        print(rgb_image)
-        img = Image.fromarray(np.array(rgb_image), 'RGB')
-        img.save('out.png')
-
-        return rgb_image
+        return

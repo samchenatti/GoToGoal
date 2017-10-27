@@ -12,21 +12,22 @@ class TrajectorySampler():
         # Duracao do timestep em segundos
         self.TIMESTEP_LENGHT = timestep_lenght
 
+        self.MANUAL_ACTION = False
 
     def action_space(self):
         return self.robot.action_space
 
 
     # Wrapper para o metodo real. Assim podemos tratar a interrupcao do teclado
-    def generate_trajectorys(self, ):
+    def generate_trajectories(self):
         try:
-            return self.__generate_trajectorys()
+            return self.__generate_trajectories()
 
         except KeyboardInterrupt:
             self.__stop()
 
 
-    def __generate_trajectorys(self):
+    def __generate_trajectories(self):
         policy = self.policy
 
         # Fecha conexoes residuais
@@ -73,9 +74,13 @@ class TrajectorySampler():
             while (t < (self.EPOCH_LENGHT * 60 / self.TIMESTEP_LENGHT)) and not robot.epoch_failed:
                 print(" ")
                 print("Timestep %d" %t)
-                if self.policy:
+                if self.policy and not self.MANUAL_ACTION:
                     # Lembrando que a politica eh n deterministica
                     a = policy.sample_action(o)
+
+                elif self.MANUAL_ACTION:
+
+                    a = self.__manual_action()
 
                 else:
                     # Se nao tivermos uma politica, bora fazer um random walk :D
@@ -97,7 +102,9 @@ class TrajectorySampler():
 
             self.__stop()
             # Retorna o set de trajetorias
-            return observations, rewards, actions
+
+            if not self.MANUAL_ACTION:
+                return observations, rewards, actions
 
         else:
             print("Nao foi possivel obter uma conexao com o servidor")
@@ -107,6 +114,8 @@ class TrajectorySampler():
         vrep.simxStopSimulation(self.clientID,  vrep.simx_opmode_blocking)
         self.robot.reset_actor()
 
+    def __manual_action(self):
+        return int(input("Press action (integer from %s)" %([0, 1, 2])))
 
 class SimulationControl:
     def __init__(self, cid, ds, callback=None):
